@@ -1,0 +1,11 @@
+node_modules/
+.wrangler/
+# Local copies of secrets (see docs/OPERATIONS.md). Never commit.
+.dev.vars
+.env
+# Editors / leftovers of the old Python version
+data/
+.venv/
+__pycache__/
+.idea/
+.vscode/

@@ -1,0 +1,35 @@
+// Cloudflare Workers config. Docs: https://developers.cloudflare.com/workers/wrangler/configuration/
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "aut-courses-bot",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+
+  // Values live only in Cloudflare (`wrangler secret put NAME`), never in this repo. See docs/OPERATIONS.md.
+  //   BOT_TOKEN       Telegram bot token from @BotFather
+  //   WEBHOOK_SECRET  random string Telegram echoes in X-Telegram-Bot-Api-Secret-Token
+  //   TOKEN_KEY       base64 32-byte AES key that encrypts the Moodle token stored in D1
+  //   OWNER_ID        your numeric Telegram user id; nobody else can use the bot
+  // `npm run setup` creates all of them.
+  "secrets": { "required": ["BOT_TOKEN", "WEBHOOK_SECRET", "TOKEN_KEY", "OWNER_ID"] },
+
+  "vars": {
+    "MOODLE_URL": "https://courses.aut.ac.ir"
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      // No database_id: wrangler finds (or creates) the database by name in your account.
+      "database_name": "aut-courses-bot",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // Background check (new content, deadline reminders, Moodle notifications). Times are UTC.
+  "triggers": { "crons": ["*/5 * * * *"] },
+
+  // Workers Logs (free plan: kept 3 days). View in the dashboard or with `npm run logs`.
+  "observability": { "enabled": true }
+}

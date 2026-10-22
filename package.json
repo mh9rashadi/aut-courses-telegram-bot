@@ -1,0 +1,28 @@
+{
+  "name": "aut-courses-bot",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Personal Telegram bot for courses.aut.ac.ir (Moodle), running on Cloudflare Workers",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "check": "tsc --noEmit && vitest run",
+    "test": "vitest run",
+    "types": "wrangler types",
+    "logs": "wrangler tail",
+    "db:migrate": "wrangler d1 migrations apply aut-courses-bot --remote",
+    "setup": "node tools/setup.mjs",
+    "webhook": "node tools/set-webhook.mjs",
+    "qr-token": "node tools/qr-token.mjs"
+  },
+  "devDependencies": {
+    "@grammyjs/types": "^5.0.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5",
+    "wrangler": "^4.151.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
