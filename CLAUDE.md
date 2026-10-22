@@ -4,6 +4,8 @@ Personal Telegram bot for courses.aut.ac.ir (Moodle) on Cloudflare Workers + D1.
 (public repo: each student deploys their own). Users speak Persian; bot UI text is Persian, code/comments/docs are English.
 
 Read first: `docs/ARCHITECTURE.md` (design + free-plan limits), `docs/OPERATIONS.md` (deploy, secrets, runbook).
+Installing is for non-technical students: `install.cmd` → browser installer (`tools/installer/`) running `tools/steps.mjs`.
+Anything a user sees during install must be Persian and say what to do next; every step must be safe to repeat.
 Open items: `docs/BACKLOG.md` — update it when you finish or discover something.
 
 ## Commands
@@ -16,7 +18,7 @@ Open items: `docs/BACKLOG.md` — update it when you finish or discover somethin
 - No runtime dependencies. Telegram/Moodle clients are hand-written on purpose.
 - Free plan: 10 ms CPU per invocation (network wait is free, JSON parsing is not), 50 subrequests. The poller
   must stay within this — see ARCHITECTURE.
-- All SQL lives in `src/store.ts`. Schema changes = new file in `migrations/`, never edit applied ones.
+- All Worker SQL lives in `src/store.ts` (the installer writes the same `kv` layout in `tools/steps.mjs`). Schema changes = new file in `migrations/`, never edit applied ones.
 - Never print or commit secrets or personal data (Telegram ids, Cloudflare account ids, emails, Moodle user ids):
   the repo is public. `.dev.vars` is the git-ignored local file with real values.
   When a command needs a secret, read it inside the command; don't echo it.

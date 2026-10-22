@@ -5,8 +5,9 @@
 ```
 Telegram ──webhook POST /telegram──▶ Worker.fetch ──▶ bot/router ──▶ handlers ──▶ Moodle WS (courses.aut.ac.ir)
                                                                    └──────────▶ Telegram Bot API (replies, files)
-Cron */5 min ─────────────────────▶ Worker.scheduled ──▶ poller ──▶ Moodle WS ──▶ Telegram (notifications)
-                                         both ──▶ D1 (state)
+Installer ──POST /setup──────────▶ Worker.fetch ──▶ setup.ts ──▶ Telegram (setWebhook)
+Cron */5 min ─────────────────────▶ Worker.scheduled ──▶ setup.ts (until connected), poller ──▶ Moodle WS ──▶ Telegram
+                                         all ──▶ D1 (state)
 ```
 
 One Worker, one D1 database, no other services. Single user (`OWNER_ID`).
@@ -22,6 +23,21 @@ One Worker, one D1 database, no other services. Single user (`OWNER_ID`).
 | Token encrypted with `TOKEN_KEY` | A database export alone does not reveal the Moodle token (which gives full account access). |
 | QR **text** instead of QR photo | Decoding an image in a Worker would exceed the free plan's 10 ms CPU limit. Phone cameras read the QR text natively. |
 | Updates processed inline, `max_connections=1` | File transfers can exceed `waitUntil`'s 30 s. One connection = updates in order, no races on state. Retries are deduped with `last_update_id`. |
+
+## Installation (tools/)
+
+Users are students, mostly on Windows, often on networks where api.telegram.org and sometimes workers.dev are blocked.
+So the install path is: `install.cmd` (checks Node, `npm install`) → `tools/installer/server.mjs`, a local web page on
+127.0.0.1 (random key in the URL; Persian UI in `index.html` + `app.js`) → the steps in `tools/steps.mjs`, which the
+terminal `npm run setup` uses too. Every step is idempotent; progress (no secrets) is in `.installer-state.json`.
+
+| Problem | How it is handled |
+|---|---|
+| New account has no workers.dev subdomain | Checked through the Cloudflare API before anything is created; the page explains how to add one. |
+| wrangler keeps the old account after switching accounts (`node_modules/.cache/wrangler`) | Cache deleted on login/logout, and on an auth error the call is retried once without it. |
+| Telegram unreachable from the user's computer | The Worker connects itself: the installer calls `POST /setup` (authenticated with `WEBHOOK_SECRET`); if that is unreachable too, every cron run tries until `kv.webhook_url` matches `kv.worker_url`, and stores the outcome in `kv.setup_status` for the installer to read through wrangler. |
+| New workers.dev hostname not resolvable for minutes | The installer retries every 20 s and shows elapsed time; cron is the backstop. |
+| QR must be redeemed from the IP that displayed it | The QR is read in the installer page (pasted screenshot, decoded with jsQR in the browser) and redeemed by the local server, so same machine and network. The token is encrypted with `TOKEN_KEY` (same format as `crypto.ts`) and written straight to D1: no `/settoken` copy-paste. |
 
 ## Free-plan limits that shape the code
 

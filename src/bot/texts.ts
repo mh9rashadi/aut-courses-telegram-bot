@@ -17,18 +17,18 @@ export const SUBMISSION_STATUS: Record<string, string> = {
 };
 
 // The site may only accept a QR from the IP that displayed it (Moodle "QR same IP check"). The Worker's IP is
-// different, so the local tool is the main path and sending the QR text here is the shortcut.
+// different, so logging in through the installer on the user's computer is the main path; sending the QR text
+// here is only a shortcut.
 const LOCAL_LOGIN_STEPS =
-  "۱. در کورسز (روی کامپیوتر) به پروفایل برو و «نمایش کد کیوآر» را بزن. هر QR فقط ۱۰ دقیقه و یک بار معتبر است.\n" +
-  "۲. QR را با دوربین گوشی (یا Google Lens) اسکن کن و <b>متن لینک</b> را کپی کن.\n" +
-  "۳. روی <b>همان کامپیوتر</b> و همان اینترنت، در پوشه‌ی ربات بزن <code>npm run qr-token</code> و وقتی پرسید متن را paste کن.\n" +
-  "۴. خطی را که چاپ می‌کند (<code>/settoken …</code>) همین‌جا بفرست.";
+  "۱. روی کامپیوتر، در پوشه‌ی ربات فایل <b>install.cmd</b> را باز کن (در مک/لینوکس: <code>npm run installer</code>).\n" +
+  "۲. در صفحه‌ای که باز می‌شود، مرحله‌ی «ورود به کورسز» را انجام بده: از QR پروفایل کورسز عکس بگیر و همان‌جا Ctrl+V بزن.\n" +
+  "هر QR فقط ۱۰ دقیقه و یک بار معتبر است.";
 
 export const RELOGIN_TEXT =
-  "🔑 اتصال به کورسز برقرار نیست یا توکن منقضی شده.\n\n" +
+  "🔑 اتصال به کورسز برقرار نیست یا منقضی شده.\n\n" +
   "برای ورود:\n" + LOCAL_LOGIN_STEPS + "\n\n" +
   "میان‌بر: متن QR را مستقیم همین‌جا هم می‌توانی بفرستی. اگر کورسز خطای IP داد، از روش بالا استفاده کن.\n" +
-  "🔒 متن QR، توکن ربات و خروجی <code>/settoken</code> را برای هیچ‌کس نفرست و جایی منتشر نکن.";
+  "🔒 متن QR، عکس QR و توکن ربات را برای هیچ‌کس نفرست و جایی منتشر نکن.";
 
 /** Explanation for a failed QR login, by Moodle error code. */
 export function qrLoginErrorText(code: string): string {

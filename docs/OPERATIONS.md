@@ -30,8 +30,8 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"     
 
 **Deploy a change:** `npm run check && npm run deploy`.
 
-**Moodle token expired** (bot says so / menu shows the re-login text): new profile QR → `npm run qr-token` on the
-computer that shows the QR → send the printed `/settoken …` line to the bot (README, step 4).
+**Moodle token expired** (bot says so / menu shows the re-login text): open `install.cmd` (or `npm run installer`)
+and do only the "ورود به کورسز" step. Fallback: `npm run qr-token` → send the printed `/settoken …` line to the bot.
 Token lifetime is set by the site (Moodle default ~12 weeks); expect to do this a few times a year.
 
 **Rotate the bot token:** @BotFather → /revoke → put the new token in `.dev.vars` →
@@ -68,6 +68,8 @@ log in again through the bot.
 
 | Symptom | Check |
 |---|---|
+| Installer stuck on "وصل کردن تلگرام" | Normal for a few minutes with a new workers.dev name. It retries; cron also connects the bot within ~5–15 min. Check `kv.setup_status`: `npx wrangler d1 execute aut-courses-bot --remote --command "SELECT value FROM kv WHERE key='setup_status'"`. |
+| `Authentication error [code: 10000]` after switching Cloudflare accounts | wrangler's per-project account cache. The installer clears it; by hand: delete `node_modules/.cache/wrangler/wrangler-account.json`. |
 | `setup`: "no workers.dev subdomain" / wrangler "register a workers.dev subdomain" | New Cloudflare account. Dashboard → Workers & Pages → pick a subdomain → wait a minute → `npm run setup` again (saved secrets and the database are reused). |
 | Login: `ipmismatch` | The site accepts a QR only from the IP that displayed it; the Worker's IP differs. New QR → `npm run qr-token` on the same computer and network as the browser. Don't resend the same QR, and don't try to spoof IPs or headers. |
 | Login: `expiredkey` / `invalidkey` | QR older than 10 min or already used. Show a new QR and redeem it right away. |
@@ -94,7 +96,8 @@ npx wrangler d1 execute aut-courses-bot --remote --command "SELECT course_id, ch
 3. Create `.dev.vars` with `BOT_TOKEN`, `OWNER_ID`, `WEBHOOK_SECRET`, `TOKEN_KEY` (generate as above).
 4. First deploy (secrets must exist before the Worker does): `npx wrangler deploy --secrets-file .dev.vars`.
 5. `npm run webhook -- https://aut-courses-bot.<your-subdomain>.workers.dev`.
-6. Send `/start` to the bot, log in with `npm run qr-token` + `/settoken`. Subscribe to courses with the 🔔 button.
+6. Send `/start` to the bot, log in with `npm run installer` (step 5) or `npm run qr-token` + `/settoken`.
+   Subscribe to courses with the 🔔 button.
 
 Before step 4 the account needs a workers.dev subdomain (once per account; dashboard → Workers & Pages).
 

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>نصب ربات کورسز</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #fff; --text: #1d2330; --muted: #5f6878; --line: #e2e5ea;
+    --accent: #2563eb; --accent-text: #fff; --ok: #15803d; --ok-bg: #e8f6ed; --err: #b42318; --err-bg: #fdecea;
+    --warn-bg: #fff6e0; --code-bg: #eef1f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151b; --card: #1b2029; --text: #e6e9ef; --muted: #9aa3b2; --line: #2b3240;
+      --accent: #5b8cff; --accent-text: #0b0f17; --ok: #4ade80; --ok-bg: #15281d; --err: #ff8a80; --err-bg: #2e1715;
+      --warn-bg: #2b2414; --code-bg: #252b36;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.9 Vazirmatn, "Segoe UI", Tahoma, sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 1.5rem; margin: 8px 0 4px; }
+  .lead { color: var(--muted); margin: 0 0 20px; }
+  .step { background: var(--card); border: 1px solid var(--line); border-radius: 12px; margin: 12px 0; overflow: hidden; }
+  .step > header { display: flex; align-items: center; gap: 12px; padding: 14px 18px; }
+  .num {
+    flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--code-bg); color: var(--muted); font-weight: 700;
+  }
+  .step.done .num { background: var(--ok-bg); color: var(--ok); }
+  .step.active .num { background: var(--accent); color: var(--accent-text); }
+  .step h2 { font-size: 1.05rem; margin: 0; flex: 1; }
+  .summary { color: var(--muted); font-size: .9rem; }
+  .body { padding: 0 18px 18px 18px; display: none; }
+  .step.active .body { display: block; }
+  ol, ul { padding-inline-start: 22px; margin: 6px 0; }
+  ol { list-style-type: persian; }
+  label { display: block; font-weight: 600; margin: 14px 0 4px; }
+  input[type=text], input[type=password] {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--bg); color: var(--text); font: inherit; direction: ltr; text-align: left;
+  }
+  button {
+    font: inherit; font-weight: 600; border: 0; border-radius: 8px; padding: 9px 18px; cursor: pointer;
+    background: var(--accent); color: var(--accent-text); margin-top: 14px;
+  }
+  button.secondary { background: var(--code-bg); color: var(--text); }
+  button:disabled { opacity: .55; cursor: progress; }
+  .hint { color: var(--muted); font-size: .9rem; }
+  .msg { border-radius: 8px; padding: 10px 14px; margin-top: 14px; white-space: pre-line; }
+  .msg.err { background: var(--err-bg); color: var(--err); }
+  .msg.ok { background: var(--ok-bg); color: var(--ok); }
+  .msg.info { background: var(--warn-bg); }
+  code, .ltr { direction: ltr; unicode-bidi: isolate; }
+  code { background: var(--code-bg); padding: 1px 6px; border-radius: 5px; font-size: .9em; }
+  a { color: var(--accent); }
+  .paste {
+    margin-top: 14px; border: 2px dashed var(--line); border-radius: 12px; padding: 28px 16px; text-align: center;
+    color: var(--muted); outline: none;
+  }
+  .paste:focus, .paste.drag { border-color: var(--accent); color: var(--text); }
+  .log { font-size: .9rem; color: var(--muted); margin-top: 10px; }
+  .spinner {
+    display: inline-block; width: 14px; height: 14px; border: 2px solid currentColor; border-top-color: transparent;
+    border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: -2px; margin-inline-end: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .note { margin-top: 28px; padding: 12px 16px; border-radius: 10px; background: var(--card); border: 1px solid var(--line);
+    font-size: .9rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>🎓 نصب ربات تلگرام کورسز</h1>
+  <p class="lead">این صفحه قدم‌به‌قدم ربات شخصی‌ات را روی اکانت رایگان Cloudflare خودت می‌سازد. حدود ۱۰ دقیقه طول می‌کشد.
+    هر جا خطایی پیش آمد، همین‌جا توضیح می‌دهد چه کنی. پنجره‌ی سیاه (ترمینال) را تا آخر کار نبند.</p>
+
+  <section class="step active" id="s1">
+    <header><span class="num">۱</span><h2>اکانت Cloudflare</h2><span class="summary"></span></header>
+    <div class="body"><div class="msg info"><span class="spinner"></span>در حال بررسی وضعیت…</div></div>
+  </section>
+  <section class="step" id="s2">
+    <header><span class="num">۲</span><h2>ربات تلگرام</h2><span class="summary"></span></header>
+    <div class="body"></div>
+  </section>
+  <section class="step" id="s3">
+    <header><span class="num">۳</span><h2>نصب ربات روی Cloudflare</h2><span class="summary"></span></header>
+    <div class="body"></div>
+  </section>
+  <section class="step" id="s4">
+    <header><span class="num">۴</span><h2>وصل کردن تلگرام</h2><span class="summary"></span></header>
+    <div class="body"></div>
+  </section>
+  <section class="step" id="s5">
+    <header><span class="num">۵</span><h2>ورود به کورسز</h2><span class="summary"></span></header>
+    <div class="body"></div>
+  </section>
+  <section class="step" id="s6">
+    <header><span class="num">✓</span><h2>تمام</h2><span class="summary"></span></header>
+    <div class="body"></div>
+  </section>
+
+  <p class="note">🔒 همه‌ی رمزها فقط روی همین کامپیوتر (فایل <code>.dev.vars</code>) و در اکانت Cloudflare خودت ذخیره
+    می‌شوند. توکن ربات، فایل <code>.dev.vars</code> و تصویر QR ورود را برای هیچ‌کس نفرست و در اسکرین‌شات نگذار.</p>
+</main>
+<script src="/jsqr.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

@@ -14,10 +14,12 @@
     "db:migrate": "wrangler d1 migrations apply aut-courses-bot --remote",
     "setup": "node tools/setup.mjs",
     "webhook": "node tools/set-webhook.mjs",
-    "qr-token": "node tools/qr-token.mjs"
+    "qr-token": "node tools/qr-token.mjs",
+    "installer": "node tools/installer/server.mjs"
   },
   "devDependencies": {
     "@grammyjs/types": "^5.0.0",
+    "jsqr": "^1.4.0",
     "typescript": "^7.0.2",
     "vitest": "^5.0.5",
     "wrangler": "^4.151.3"

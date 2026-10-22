@@ -9,3 +9,5 @@ data/
 __pycache__/
 .idea/
 .vscode/
+# Installer progress (no secrets)
+.installer-state.json

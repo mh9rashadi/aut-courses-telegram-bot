@@ -1,4 +1,5 @@
 // Pure helpers for tools/qr-token.mjs (kept separate so the tests can import them without network calls).
+// User-facing messages are Persian.
 
 export const MOODLE = "https://courses.aut.ac.ir";
 
@@ -18,10 +19,10 @@ export function parseQrInput(raw) {
 }
 
 const INPUT_HELP = {
-  empty: "No QR text given.",
-  placeholder: "This looks like the example from the docs, not your own QR. Paste the text your phone read from the QR.",
-  site: "This is not a courses.aut.ac.ir login QR.",
-  format: "The QR text is incomplete: it must contain both qrlogin=… and userid=<number>. Copy the whole text again.",
+  empty: "متنی وارد نشد. متن QR را paste کن و Enter بزن.",
+  placeholder: "این متن نمونه‌ی راهنماست، نه QR خودت. متنی را paste کن که دوربین گوشی از QR خودت خوانده.",
+  site: "این QR ورود کورسز امیرکبیر (courses.aut.ac.ir) نیست.",
+  format: "متن QR ناقص است: باید هم qrlogin=… و هم userid=<عدد> داشته باشد. دوباره کامل کپی کن.",
 };
 
 export const inputHelp = (error) => INPUT_HELP[error] ?? INPUT_HELP.format;
@@ -31,17 +32,17 @@ export function qrErrorHelp(code) {
   switch (code) {
     case "expiredkey":
     case "invalidkey":
-      return "This QR is no longer valid (it expired after 10 minutes or was already used). " +
-        "Show a new QR on the courses profile page and run this again right away.";
+      return "این QR دیگر معتبر نیست: یا ۱۰ دقیقه‌اش گذشته یا قبلاً یک بار استفاده شده.\n" +
+        "در صفحه‌ی پروفایل کورسز یک QR تازه بساز و بلافاصله دوباره امتحان کن.";
     case "ipmismatch":
-      return "The site wants the QR to be redeemed from the same internet connection that displayed it. " +
-        "Make sure the browser showing the QR and this terminal use the same network (same VPN on or off), " +
-        "then try again with a new QR. Don't try to work around this check.";
+      return "کورسز QR را فقط از همان اینترنتی قبول می‌کند که QR را نشان داده.\n" +
+        "مرورگری که QR را نشان می‌دهد و این برنامه باید از یک اینترنت رد شوند (VPN در هر دو روشن یا در هر دو خاموش).\n" +
+        "بعد با یک QR تازه دوباره امتحان کن. سعی نکن این محدودیت امنیتی را دور بزنی.";
     case "network":
-      return "Could not reach courses.aut.ac.ir. Check your internet/VPN and try again with a new QR.";
+      return "به courses.aut.ac.ir وصل نشدم. اینترنت/VPN را چک کن و با یک QR تازه دوباره امتحان کن.";
     case "badresponse":
-      return "courses.aut.ac.ir sent an unexpected answer (site down or under maintenance?). Try again later.";
+      return "کورسز جواب عجیبی داد (شاید سایت قطع است یا در حال تعمیر). کمی بعد دوباره امتحان کن.";
     default:
-      return "The site refused the QR. Try once more with a new QR; if it keeps failing, see docs/OPERATIONS.md.";
+      return "کورسز QR را قبول نکرد. یک بار دیگر با QR تازه امتحان کن. اگر باز نشد، docs/OPERATIONS.md را ببین.";
   }
 }

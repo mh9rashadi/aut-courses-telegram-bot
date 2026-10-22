@@ -2,6 +2,7 @@
 
 import { decrypt, encrypt } from "./crypto";
 import type { Snapshot } from "./poller/snapshot";
+import type { SetupStatus } from "./setup";
 
 /** Typed keys of the `kv` table. Add new keys here; values are stored as JSON. */
 export interface KvValues {
@@ -12,6 +13,9 @@ export interface KvValues {
   last_cron_at: number; // unix time of the last finished background run (heartbeat)
   token_alerted: boolean; // "token expired" message already sent
   upload: UploadSession; // assignment submission in progress
+  worker_url: string; // https://<worker>.<subdomain>.workers.dev, written by the installer
+  webhook_url: string; // webhook the Worker registered itself (setup.ts)
+  setup_status: SetupStatus; // outcome of the last self-registration, read by the installer
 }
 
 export interface UploadSession {

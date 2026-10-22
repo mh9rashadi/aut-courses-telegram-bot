@@ -7,8 +7,13 @@ Known gaps and ideas, roughly by value. Contributions welcome. Pick one, read AR
       real submissions. Logic matches v1. Watch the first real submission; check Observability if it fails.
 - [x] **QR login from Cloudflare's IP**: a real install (2026-10-22) got `ipmismatch` (site has the QR same-IP check
       on). `npm run qr-token` is now the main documented path; the bot explains `ipmismatch`/`expiredkey`.
-- [ ] **Fresh Cloudflare account without workers.dev subdomain**: `setup` now checks it before creating anything
-      (API `accounts/:id/workers/subdomain`), but this path was only tested by unit test, not on a brand-new account.
+- [ ] **Fresh Cloudflare account without workers.dev subdomain**: the installer checks it before creating anything
+      (API `accounts/:id/workers/subdomain`), but a brand-new test account already had one, so the "missing" branch
+      is untested on a real account.
+- [ ] **Browser installer on a clean Windows machine** (2026-10-23): tested end to end on an existing test account
+      (install, all three Telegram paths, QR paste with a fake key). Not yet: double-clicking `install.cmd` from a
+      fresh ZIP with no Node.js, and a real QR login through the page.
+- [ ] Mac/Linux: no double-click launcher (`npm run installer` in a terminal).
 
 ## Improvements
 - [ ] Stream assignment uploads too (Telegram → Moodle `upload.php`), like `sendDocumentStream`; today files are

@@ -25,14 +25,14 @@ describe("qr-token input", () => {
   it("explains each QR error differently", () => {
     const texts = ["expiredkey", "ipmismatch", "network", "badresponse", "whatever"].map(qrErrorHelp);
     expect(new Set(texts).size).toBe(texts.length);
-    expect(qrErrorHelp("expiredkey")).toMatch(/new QR/);
+    expect(qrErrorHelp("expiredkey")).toContain("QR تازه");
   });
 });
 
 describe("bot QR login errors", () => {
   it("leads ipmismatch to the local tool and doesn't suggest resending the same QR", () => {
     const text = qrLoginErrorText("ipmismatch");
-    expect(text).toContain("npm run qr-token");
+    expect(text).toContain("install.cmd");
     expect(text).toContain("QR تازه");
   });
 
@@ -49,6 +49,7 @@ describe("setup errors", () => {
   it("explains a missing workers.dev subdomain", () => {
     const out = "[WARNING] You need to register a workers.dev subdomain before publishing to workers.dev";
     expect(deployErrorHelp(out)).toContain("dash.cloudflare.com");
+    expect(deployErrorHelp("Timed out waiting for authorization code")).toContain("Allow");
   });
 
   it("returns null for unknown failures", () => {
