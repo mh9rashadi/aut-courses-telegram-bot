@@ -9,7 +9,8 @@
 // 4. Send the printed /settoken line to your own bot (the bot deletes the message).
 
 import { createInterface } from "node:readline/promises";
-import { MOODLE, inputHelp, parseQrInput, qrErrorHelp } from "./qr.mjs";
+import { inputHelp, parseQrInput } from "./qr.mjs";
+import { StepError, redeemQr } from "./steps.mjs";
 
 async function readQrText() {
   if (process.argv[2]) return process.argv.slice(2).join(" ");
@@ -33,27 +34,14 @@ const qr = parseQrInput(await readQrText());
 if (qr.error) fail(inputHelp(qr.error));
 
 console.log("در حال گرفتن توکن از کورسز…");
-let res;
+let token;
 try {
-  const resp = await fetch(`${MOODLE}/lib/ajax/service-nologin.php?info=tool_mobile_get_tokens_for_qr_login`, {
-    method: "POST",
-    headers: { "content-type": "application/json", "user-agent": "MoodleMobile 4.5.0" },
-    body: JSON.stringify([{ index: 0, methodname: "tool_mobile_get_tokens_for_qr_login",
-      args: { qrloginkey: qr.key, userid: qr.userid } }]),
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!resp.ok) fail(`HTTP ${resp.status}. ${qrErrorHelp("badresponse")}`);
-  [res] = await resp.json().catch(() => [null]);
-} catch {
-  fail(qrErrorHelp("network"));
-}
-if (!res) fail(qrErrorHelp("badresponse"));
-if (res.error || !res.data?.token) {
-  // Only the error code is printed: the raw response isn't needed and must not end up in shared logs.
-  const code = String(res.exception?.errorcode ?? "unknown");
-  fail(`ورود انجام نشد (کد خطا: ${code}).\n${qrErrorHelp(code)}`);
+  token = await redeemQr(qr);
+} catch (err) {
+  if (!(err instanceof StepError)) throw err;
+  fail(err.message);
 }
 
 console.log("\n✅ توکن گرفته شد. خط زیر را کامل کپی کن و فقط برای «ربات خودت» در تلگرام بفرست.");
 console.log("   این خط مثل رمز کورسز توست: برای کسی نفرست و در اسکرین‌شات یا Issue نگذار. ربات بعد از خواندن پاکش می‌کند.\n");
-console.log(`/settoken ${res.data.token}\n`);
+console.log(`/settoken ${token}\n`);

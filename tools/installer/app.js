@@ -24,7 +24,7 @@ async function api(name, body = {}) {
   }
   if (resp.status === 403) throw new Error("این صفحه کهنه است. پنجره‌ای را که install.cmd باز کرد استفاده کن.");
   const data = await resp.json();
-  if (data.error) throw Object.assign(new Error(data.error), { code: data.code });
+  if (data.error) throw new Error(data.error);
   return data;
 }
 

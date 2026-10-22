@@ -7,37 +7,32 @@ import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { TelegramUnreachable, deployErrorHelp, readDevVars, registerWebhook, telegram, writeDevVars }
+import { ROOT, TelegramUnreachable, deployErrorHelp, readDevVars, registerWebhook, telegram, writeDevVars }
   from "./lib.mjs";
 import { MOODLE, inputHelp, parseQrInput, qrErrorHelp } from "./qr.mjs";
 
 export const DB_NAME = "aut-courses-bot";
 export const WORKER_NAME =
-  /"name"\s*:\s*"([^"]+)"/.exec(readFileSync("wrangler.jsonc", "utf8"))?.[1] ?? "aut-courses-bot";
-const WRANGLER = join("node_modules", "wrangler", "bin", "wrangler.js");
+  /"name"\s*:\s*"([^"]+)"/.exec(readFileSync(join(ROOT, "wrangler.jsonc"), "utf8"))?.[1] ?? "aut-courses-bot";
+const WRANGLER = join(ROOT, "node_modules", "wrangler", "bin", "wrangler.js");
 
-/** A failure the user can act on; `message` is Persian and says what to do. */
-export class StepError extends Error {
-  constructor(message, code = "error") {
-    super(message);
-    this.code = code;
-  }
-}
+/** A failure the user can act on; the message is Persian and says what to do. */
+export class StepError extends Error {}
 
-/** Run wrangler (the project's own copy, no shell). Resolves with { code, out } where out = stdout + stderr. */
-export function wrangler(args, { onOutput } = {}) {
+/**
+ * Run wrangler (the project's own copy, no shell) in the project root, where it finds wrangler.jsonc and .dev.vars.
+ * Resolves with { code, out } where out = stdout + stderr.
+ */
+function wrangler(args) {
   if (!existsSync(WRANGLER)) {
     throw new StepError("پوشه‌ی node_modules کامل نیست. اول npm install را اجرا کن (install.cmd خودش این کار را می‌کند).");
   }
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, [WRANGLER, ...args], { env: { ...process.env, FORCE_COLOR: "0" } });
+    const child = spawn(process.execPath, [WRANGLER, ...args],
+      { cwd: ROOT, env: { ...process.env, FORCE_COLOR: "0" } });
     let out = "";
-    const collect = (chunk) => {
-      out += chunk;
-      onOutput?.(String(chunk));
-    };
-    child.stdout.on("data", collect);
-    child.stderr.on("data", collect);
+    child.stdout.on("data", (chunk) => (out += chunk));
+    child.stderr.on("data", (chunk) => (out += chunk));
     child.on("error", (err) => resolve({ code: -1, out: String(err) }));
     child.on("close", (code) => resolve({ code, out }));
   });
@@ -45,16 +40,16 @@ export function wrangler(args, { onOutput } = {}) {
 
 // wrangler remembers the account per project here. After logging in with another account it keeps using the old
 // one and every call fails with "Authentication error [code: 10000]".
-const ACCOUNT_CACHE = join("node_modules", ".cache", "wrangler", "wrangler-account.json");
+const ACCOUNT_CACHE = join(ROOT, "node_modules", ".cache", "wrangler", "wrangler-account.json");
 const forgetAccount = () => rmSync(ACCOUNT_CACHE, { force: true });
 
-async function wranglerOk(args, fallback, opts) {
-  let res = await wrangler(args, opts);
+async function wranglerOk(args, fallback) {
+  let res = await wrangler(args);
   if (res.code !== 0 && /code: 10000/.test(res.out) && existsSync(ACCOUNT_CACHE)) {
     forgetAccount();
-    res = await wrangler(args, opts);
+    res = await wrangler(args);
   }
-  if (res.code !== 0) throw new StepError(deployErrorHelp(res.out) ?? fallback, "wrangler");
+  if (res.code !== 0) throw new StepError(deployErrorHelp(res.out) ?? fallback);
   return res.out;
 }
 
@@ -68,12 +63,11 @@ function parseJson(text) {
 
 // --- 1. Cloudflare ----------------------------------------------------------------------------------------------
 
-/** { loggedIn, email, accounts, subdomain }; subdomain is null when unknown, "" when the account has none. */
+/** { loggedIn, email, subdomain }; subdomain is null when unknown, "" when the account has none. */
 export async function cloudflareStatus() {
   const who = parseJson((await wrangler(["whoami", "--json"])).out);
   if (!who?.loggedIn) return { loggedIn: false };
-  const accounts = who.accounts ?? [];
-  return { loggedIn: true, email: who.email, accounts: accounts.length, subdomain: await workersDevSubdomain(accounts) };
+  return { loggedIn: true, email: who.email, subdomain: await workersDevSubdomain(who.accounts ?? []) };
 }
 
 /**
@@ -117,10 +111,10 @@ export async function saveBotSettings(token, ownerId) {
   token = String(token ?? "").trim();
   ownerId = String(ownerId ?? "").trim();
   if (!/^\d+:[\w-]{30,}$/.test(token)) {
-    throw new StepError("این شبیه توکن ربات نیست. توکن شکلی مثل 123456789:AAH… دارد؛ دوباره از @BotFather کپی کن.", "token");
+    throw new StepError("این شبیه توکن ربات نیست. توکن شکلی مثل 123456789:AAH… دارد؛ دوباره از @BotFather کپی کن.");
   }
   if (!/^\d{4,}$/.test(ownerId)) {
-    throw new StepError("آیدی عددی تلگرام فقط از رقم تشکیل شده (مثلاً 123456789). از @userinfobot بگیرش.", "owner");
+    throw new StepError("آیدی عددی تلگرام فقط از رقم تشکیل شده (مثلاً 123456789). از @userinfobot بگیرش.");
   }
   let result;
   try {
@@ -129,7 +123,7 @@ export async function saveBotSettings(token, ownerId) {
   } catch (err) {
     if (!(err instanceof TelegramUnreachable)) {
       throw new StepError(`تلگرام این توکن را قبول نکرد (${err.message.replace(/^Telegram getMe: /, "")}). ` +
-        "دوباره از @BotFather کپی کن؛ اگر /revoke زده‌ای، توکن جدید را بده.", "token");
+        "دوباره از @BotFather کپی کن؛ اگر /revoke زده‌ای، توکن جدید را بده.");
     }
     result = { unverified: true };
   }
@@ -221,7 +215,7 @@ export async function connectTelegram(url) {
  */
 export async function loginWithQr(qrText) {
   const qr = parseQrInput(qrText);
-  if (qr.error) throw new StepError(inputHelp(qr.error), "qr");
+  if (qr.error) throw new StepError(inputHelp(qr.error));
   const token = await redeemQr(qr);
   const info = await moodleCall(token, "core_webservice_get_site_info");
   await saveMoodleToken(token, info.userid);
@@ -238,17 +232,17 @@ export async function redeemQr({ key, userid }) {
         args: { qrloginkey: key, userid } }]),
       signal: AbortSignal.timeout(30_000),
     });
-    if (!resp.ok) throw new StepError(`HTTP ${resp.status}. ${qrErrorHelp("badresponse")}`, "qr");
+    if (!resp.ok) throw new StepError(`HTTP ${resp.status}. ${qrErrorHelp("badresponse")}`);
     [res] = await resp.json().catch(() => [null]);
   } catch (err) {
     if (err instanceof StepError) throw err;
-    throw new StepError(qrErrorHelp("network"), "qr");
+    throw new StepError(qrErrorHelp("network"));
   }
-  if (!res) throw new StepError(qrErrorHelp("badresponse"), "qr");
+  if (!res) throw new StepError(qrErrorHelp("badresponse"));
   if (res.error || !res.data?.token) {
     // Only the error code is shown: the raw response isn't needed and must not end up in shared logs.
     const code = String(res.exception?.errorcode ?? "unknown");
-    throw new StepError(`ورود انجام نشد (کد خطا: ${code}).\n${qrErrorHelp(code)}`, "qr");
+    throw new StepError(`ورود انجام نشد (کد خطا: ${code}).\n${qrErrorHelp(code)}`);
   }
   return res.data.token;
 }
@@ -263,9 +257,9 @@ async function moodleCall(token, fn) {
     });
     data = await resp.json();
   } catch {
-    throw new StepError(qrErrorHelp("network"), "qr");
+    throw new StepError(qrErrorHelp("network"));
   }
-  if (data?.exception) throw new StepError(`کورسز توکن را قبول نکرد (${data.errorcode}). با یک QR تازه دوباره امتحان کن.`, "qr");
+  if (data?.exception) throw new StepError(`کورسز توکن را قبول نکرد (${data.errorcode}). با یک QR تازه دوباره امتحان کن.`);
   return data;
 }
 

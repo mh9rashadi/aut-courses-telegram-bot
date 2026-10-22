@@ -7,43 +7,40 @@ import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-process.chdir(ROOT); // wrangler.jsonc, .dev.vars and node_modules are relative to the project root
-
-const { StepError, WORKER_NAME, cloudflareLogin, cloudflareLogout, cloudflareStatus, connectTelegram, deployWorker,
-  loginWithQr, saveBotSettings, setupDatabase } = await import("../steps.mjs");
-const { readDevVars } = await import("../lib.mjs");
+import { join } from "node:path";
+import { ROOT, readDevVars } from "../lib.mjs";
+import { StepError, cloudflareLogin, cloudflareLogout, cloudflareStatus, connectTelegram, deployWorker, loginWithQr,
+  saveBotSettings, setupDatabase } from "../steps.mjs";
 
 const KEY = randomBytes(16).toString("hex");
-const STATE_FILE = ".installer-state.json"; // git-ignored; progress only, no secrets
+const STATE_FILE = join(ROOT, ".installer-state.json"); // git-ignored; progress only, no secrets
 
 const readState = () => (existsSync(STATE_FILE) ? JSON.parse(readFileSync(STATE_FILE, "utf8")) : {});
 const saveState = (patch) => writeFileSync(STATE_FILE, JSON.stringify({ ...readState(), ...patch }, null, 2));
 
 const STATIC = {
-  "/": ["tools/installer/index.html", "text/html; charset=utf-8"],
-  "/app.js": ["tools/installer/app.js", "text/javascript; charset=utf-8"],
-  "/jsqr.js": ["node_modules/jsqr/dist/jsQR.js", "text/javascript; charset=utf-8"],
+  "/": [join(ROOT, "tools", "installer", "index.html"), "text/html; charset=utf-8"],
+  "/app.js": [join(ROOT, "tools", "installer", "app.js"), "text/javascript; charset=utf-8"],
+  "/jsqr.js": [join(ROOT, "node_modules", "jsqr", "dist", "jsQR.js"), "text/javascript; charset=utf-8"],
 };
+
+// Checking Cloudflare takes several seconds (wrangler twice + an API call) and the page asks after every step.
+// The answer only changes on login/logout, or while the user is still creating the workers.dev subdomain.
+let cloudflare = null;
 
 const API = {
   async state() {
+    if (!cloudflare?.subdomain) cloudflare = await cloudflareStatus();
     const vars = readDevVars();
-    return {
-      cloudflare: await cloudflareStatus(),
-      botSaved: Boolean(vars.BOT_TOKEN && vars.OWNER_ID),
-      worker: WORKER_NAME,
-      ...readState(),
-    };
+    return { cloudflare, botSaved: Boolean(vars.BOT_TOKEN && vars.OWNER_ID), ...readState() };
   },
   async cfLogin() {
+    cloudflare = null;
     await cloudflareLogin();
     return {};
   },
   async cfLogout() {
+    cloudflare = null;
     await cloudflareLogout();
     saveState({ workerUrl: null, telegramOk: false, bot: null, moodleName: null });
     return {};
@@ -109,8 +106,7 @@ const server = createServer(async (req, res) => {
     send(200, await serialized(() => API[name](body)));
   } catch (err) {
     if (!(err instanceof StepError)) console.error(err);
-    send(200, { error: err instanceof StepError ? err.message : `خطای پیش‌بینی‌نشده: ${err.message}`,
-      code: err.code ?? "error" });
+    send(200, { error: err instanceof StepError ? err.message : `خطای پیش‌بینی‌نشده: ${err.message}` });
   }
 });
 

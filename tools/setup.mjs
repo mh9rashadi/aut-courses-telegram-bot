@@ -33,7 +33,8 @@ try {
   console.log(`وارد شدی: ${cf.email}`);
 
   step(2, "ربات تلگرام");
-  if (readDevVars().BOT_TOKEN && readDevVars().OWNER_ID) {
+  const { BOT_TOKEN, OWNER_ID } = readDevVars();
+  if (BOT_TOKEN && OWNER_ID) {
     console.log("توکن ربات و آیدی از قبل در .dev.vars ذخیره شده‌اند.");
   } else {
     while (true) {

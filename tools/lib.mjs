@@ -1,8 +1,12 @@
 // Helpers shared by the tools/ scripts (Node.js, run on your own computer). User-facing messages are Persian.
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-export const DEV_VARS = ".dev.vars";
+/** Project root (where wrangler.jsonc is), so the tools work from any current directory. */
+export const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+export const DEV_VARS = join(ROOT, ".dev.vars");
 
 /** An actionable explanation for known wrangler failures (from its output), or null if unknown. */
 export function deployErrorHelp(output) {
