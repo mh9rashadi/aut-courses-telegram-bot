@@ -79,13 +79,26 @@ try {
   const vars = readDevVars();
   while (true) {
     vars.BOT_TOKEN ||= (await rl.question("Bot token from @BotFather (/newbot): ")).trim();
+    if (!/^\d+:[\w-]{30,}$/.test(vars.BOT_TOKEN)) {
+      console.log("That doesn't look like a bot token (digits:letters). Copy it again from @BotFather.");
+      vars.BOT_TOKEN = "";
+      continue;
+    }
     try {
       const me = await telegram(vars.BOT_TOKEN, "getMe");
       console.log(`Bot: @${me.username}`);
       break;
-    } catch {
-      console.log("That token was not accepted by Telegram, try again.");
-      vars.BOT_TOKEN = "";
+    } catch (err) {
+      if (/^Telegram getMe:/.test(err.message)) {
+        // Telegram answered and refused the token (e.g. "Unauthorized": revoked or mistyped).
+        console.log(`Telegram refused that token (${err.message.slice(14)}). Copy it again from @BotFather.`);
+        vars.BOT_TOKEN = "";
+      } else {
+        // No answer at all: api.telegram.org is blocked on many networks (e.g. in Iran). The token may be fine.
+        console.log("Could not reach api.telegram.org, so the token couldn't be checked. It may be blocked on " +
+          "your network:\nturn on a VPN that lets this terminal reach Telegram, then press Enter to retry.");
+        await rl.question("");
+      }
     }
   }
   while (!/^\d+$/.test(vars.OWNER_ID ?? "")) {

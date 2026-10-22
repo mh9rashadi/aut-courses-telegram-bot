@@ -35,10 +35,16 @@ export function writeDevVars(vars) {
 }
 
 export async function telegram(token, method, params = {}) {
-  const resp = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
-    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(params),
-  });
-  const data = await resp.json();
+  let data;
+  try {
+    const resp = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(params),
+      signal: AbortSignal.timeout(20_000),
+    });
+    data = await resp.json();
+  } catch {
+    throw new Error("Could not reach api.telegram.org (blocked on this network? turn on a VPN and run again)");
+  }
   if (!data.ok) throw new Error(`Telegram ${method}: ${data.description}`);
   return data.result;
 }
