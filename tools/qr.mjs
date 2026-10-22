@@ -27,22 +27,29 @@ const INPUT_HELP = {
 
 export const inputHelp = (error) => INPUT_HELP[error] ?? INPUT_HELP.format;
 
+// A QR shown by a profile page whose session has already expired is refused too, and Moodle may report that as
+// ipmismatch or invalidkey. It is the most common cause in practice, so every QR error starts with it.
+const FRESH_QR =
+  "صفحه‌ی پروفایل کورسز را رفرش کن (F5). اگر صفحه‌ی ورود آمد، یعنی از حسابت خارج شده بودی: دوباره وارد شو.\n" +
+  "بعد «نمایش کد کیوآر» را بزن و از QR تازه عکس بگیر.";
+
 /** Explanation for a Moodle (or network) error code from tool_mobile_get_tokens_for_qr_login. */
 export function qrErrorHelp(code) {
   switch (code) {
     case "expiredkey":
     case "invalidkey":
-      return "این QR دیگر معتبر نیست: یا ۱۰ دقیقه‌اش گذشته یا قبلاً یک بار استفاده شده.\n" +
-        "در صفحه‌ی پروفایل کورسز یک QR تازه بساز و بلافاصله دوباره امتحان کن.";
     case "ipmismatch":
-      return "کورسز QR را فقط از همان اینترنتی قبول می‌کند که QR را نشان داده.\n" +
-        "مرورگری که QR را نشان می‌دهد و این برنامه باید از یک اینترنت رد شوند (VPN در هر دو روشن یا در هر دو خاموش).\n" +
-        "بعد با یک QR تازه دوباره امتحان کن. سعی نکن این محدودیت امنیتی را دور بزنی.";
+      return "کورسز این QR را قبول نکرد. معمولاً یکی از این‌هاست:\n" +
+        "• از حساب کورسز خارج شده‌ای (سشن منقضی شده)، ولی صفحه‌ی قدیمی هنوز QR را نشان می‌دهد.\n" +
+        "• QR قدیمی است: هر QR فقط ۱۰ دقیقه و یک بار معتبر است.\n" +
+        (code === "ipmismatch"
+          ? "• مرورگر و این برنامه از دو اینترنت مختلف رد می‌شوند (مثلاً VPN فقط روی مرورگر روشن است).\n" : "") +
+        "\nچه کار کنی: " + FRESH_QR;
     case "network":
       return "به courses.aut.ac.ir وصل نشدم. اینترنت/VPN را چک کن و با یک QR تازه دوباره امتحان کن.";
     case "badresponse":
       return "کورسز جواب عجیبی داد (شاید سایت قطع است یا در حال تعمیر). کمی بعد دوباره امتحان کن.";
     default:
-      return "کورسز QR را قبول نکرد. یک بار دیگر با QR تازه امتحان کن. اگر باز نشد، docs/OPERATIONS.md را ببین.";
+      return "کورسز QR را قبول نکرد.\n\nچه کار کنی: " + FRESH_QR;
   }
 }

@@ -27,6 +27,12 @@ describe("qr-token input", () => {
     expect(new Set(texts).size).toBe(texts.length);
     expect(qrErrorHelp("expiredkey")).toContain("QR تازه");
   });
+
+  it("points every QR refusal to an expired courses session, the most common cause", () => {
+    for (const code of ["expiredkey", "invalidkey", "ipmismatch", "whatever"]) {
+      expect(qrErrorHelp(code)).toContain("رفرش");
+    }
+  });
 });
 
 describe("bot QR login errors", () => {
