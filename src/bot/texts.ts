@@ -49,6 +49,11 @@ export function qrLoginErrorText(code: string): string {
   }
 }
 
+export const NOT_CLAIMED_TEXT =
+  "این ربات هنوز راه‌اندازی نشده.\n" +
+  "اگر صاحب این رباتی، در صفحه‌ی نصب روی دکمه‌ی «باز کردن ربات در تلگرام» بزن (یا خط <code>/start …</code> " +
+  "را که آن‌جا نوشته شده همین‌جا بفرست).";
+
 export const DELETE_FAILED_TEXT = "⚠️ نتوانستم پیامت را پاک کنم. چون اطلاعات ورود دارد، خودت از چت پاکش کن.";
 
 export const HOME_TEXT = "🎓 <b>پنل کورسز</b>\nیکی را انتخاب کن:";

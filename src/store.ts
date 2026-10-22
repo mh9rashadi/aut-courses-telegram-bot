@@ -16,6 +16,8 @@ export interface KvValues {
   worker_url: string; // https://<worker>.<subdomain>.workers.dev, written by the installer
   webhook_url: string; // webhook the Worker registered itself (setup.ts)
   setup_status: SetupStatus; // outcome of the last self-registration, read by the installer
+  owner_id: number; // Telegram id of the owner, when not set by the OWNER_ID secret (bot/owner.ts)
+  claim_code: string; // SHA-256 hex of the installer's one-time claim code
 }
 
 export interface UploadSession {

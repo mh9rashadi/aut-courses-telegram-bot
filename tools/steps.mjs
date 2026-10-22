@@ -3,7 +3,7 @@
 // Messages returned to the user are Persian.
 
 import { spawn } from "node:child_process";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -103,18 +103,14 @@ export async function cloudflareLogout() {
 // --- 2. Telegram bot ------------------------------------------------------------------------------------------
 
 /**
- * Check the bot token and Telegram id and save them (plus generated secrets) to .dev.vars.
+ * Check the bot token and save it (plus generated secrets) to .dev.vars. The owner is set later by claimLink.
  * Returns { bot } when Telegram confirmed the token, or { unverified: true } when Telegram can't be reached from
  * this computer (the Worker checks it later from Cloudflare).
  */
-export async function saveBotSettings(token, ownerId) {
+export async function saveBotSettings(token) {
   token = String(token ?? "").trim();
-  ownerId = String(ownerId ?? "").trim();
   if (!/^\d+:[\w-]{30,}$/.test(token)) {
     throw new StepError("این شبیه توکن ربات نیست. توکن شکلی مثل 123456789:AAH… دارد؛ دوباره از @BotFather کپی کن.");
-  }
-  if (!/^\d{4,}$/.test(ownerId)) {
-    throw new StepError("آیدی عددی تلگرام فقط از رقم تشکیل شده (مثلاً 123456789). از @userinfobot بگیرش.");
   }
   let result;
   try {
@@ -129,7 +125,6 @@ export async function saveBotSettings(token, ownerId) {
   }
   const vars = readDevVars();
   vars.BOT_TOKEN = token;
-  vars.OWNER_ID = ownerId;
   vars.WEBHOOK_SECRET ||= randomBytes(32).toString("base64url");
   vars.TOKEN_KEY ||= randomBytes(32).toString("base64"); // never replaced: it decrypts the stored login
   writeDevVars(vars);
@@ -207,6 +202,29 @@ export async function connectTelegram(url) {
   return { ok: false, pending: true };
 }
 
+// --- 4b. Owner ------------------------------------------------------------------------------------------------
+
+/**
+ * One-time link that makes whoever opens it (and presses Start) the bot's owner; see src/bot/owner.ts.
+ * Only the code's SHA-256 is stored. Returns { app, web, command }: tg:// opens the Telegram app directly
+ * (t.me is blocked on some networks), and the command can be sent to the bot by hand.
+ */
+export async function claimLink(bot) {
+  const code = randomBytes(18).toString("base64url");
+  await kvSet({ claim_code: createHash("sha256").update(code).digest("hex") });
+  return {
+    app: `tg://resolve?domain=${bot}&start=${code}`,
+    web: `https://t.me/${bot}?start=${code}`,
+    command: `/start ${code}`,
+  };
+}
+
+/** True once the bot has an owner (claimed, or the OWNER_ID secret of an older install). */
+export async function ownerClaimed() {
+  if (readDevVars().OWNER_ID) return true;
+  return Boolean((await kvGet("owner_id")).owner_id);
+}
+
 // --- 5. Moodle login ------------------------------------------------------------------------------------------
 
 /**
@@ -275,6 +293,40 @@ async function saveMoodleToken(token, userid) {
   const { TOKEN_KEY } = readDevVars();
   if (!TOKEN_KEY) throw new StepError("فایل .dev.vars پیدا نشد یا کامل نیست. اول مرحله‌های نصب را کامل کن.");
   await kvSet({ moodle_token: await encryptToken(token, TOKEN_KEY), moodle_userid: userid, token_alerted: false });
+}
+
+// --- Uninstall ------------------------------------------------------------------------------------------------
+
+/**
+ * Remove everything the installer created: the Telegram webhook, the Worker, the database (with the stored login)
+ * and the local secrets/progress files. Each part is skipped if already gone. `log` gets one Persian line per part.
+ */
+export async function uninstall(log = () => {}) {
+  const { BOT_TOKEN } = readDevVars();
+  if (BOT_TOKEN) {
+    try {
+      await telegram(BOT_TOKEN, "deleteWebhook");
+      log("اتصال تلگرام به ربات قطع شد.");
+    } catch {
+      log("اتصال تلگرام قطع نشد (تلگرام در دسترس نبود). اشکالی ندارد: ربات حذف می‌شود و پیام‌ها جایی نمی‌روند.");
+    }
+  }
+
+  const worker = await wrangler(["delete", WORKER_NAME]);
+  if (worker.code === 0) log(`Worker «${WORKER_NAME}» حذف شد.`);
+  else if (/not found|does not exist|10007/i.test(worker.out)) log("Worker از قبل وجود نداشت.");
+  else throw new StepError(deployErrorHelp(worker.out) ?? "حذف Worker انجام نشد.");
+
+  const dbs = parseJson(await wranglerOk(["d1", "list", "--json"], "فهرست دیتابیس‌ها گرفته نشد."));
+  if (Array.isArray(dbs) && dbs.some((db) => db.name === DB_NAME)) {
+    await wranglerOk(["d1", "delete", DB_NAME, "--skip-confirmation"], "حذف دیتابیس انجام نشد.");
+    log(`دیتابیس «${DB_NAME}» (همراه با اطلاعات ورود به کورسز) حذف شد.`);
+  } else {
+    log("دیتابیس از قبل وجود نداشت.");
+  }
+
+  for (const file of [".dev.vars", ".installer-state.json"]) rmSync(join(ROOT, file), { force: true });
+  log("رمزهای ذخیره‌شده روی این کامپیوتر (.dev.vars) پاک شدند.");
 }
 
 // --- D1 kv table (same layout as src/store.ts) -----------------------------------------------------------------

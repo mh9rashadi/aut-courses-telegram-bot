@@ -9,8 +9,8 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { join } from "node:path";
 import { ROOT, readDevVars } from "../lib.mjs";
-import { StepError, cloudflareLogin, cloudflareLogout, cloudflareStatus, connectTelegram, deployWorker, loginWithQr,
-  saveBotSettings, setupDatabase } from "../steps.mjs";
+import { StepError, claimLink, cloudflareLogin, cloudflareLogout, cloudflareStatus, connectTelegram, deployWorker,
+  loginWithQr, ownerClaimed, saveBotSettings, setupDatabase } from "../steps.mjs";
 
 const KEY = randomBytes(16).toString("hex");
 const STATE_FILE = join(ROOT, ".installer-state.json"); // git-ignored; progress only, no secrets
@@ -31,8 +31,7 @@ let cloudflare = null;
 const API = {
   async state() {
     if (!cloudflare?.subdomain) cloudflare = await cloudflareStatus();
-    const vars = readDevVars();
-    return { cloudflare, botSaved: Boolean(vars.BOT_TOKEN && vars.OWNER_ID), ...readState() };
+    return { cloudflare, botSaved: Boolean(readDevVars().BOT_TOKEN), ...readState() };
   },
   async cfLogin() {
     cloudflare = null;
@@ -42,11 +41,12 @@ const API = {
   async cfLogout() {
     cloudflare = null;
     await cloudflareLogout();
-    saveState({ workerUrl: null, telegramOk: false, bot: null, moodleName: null });
+    // Another account means another database: the bot has to be installed, connected and claimed again.
+    saveState({ workerUrl: null, telegramOk: false, ownerClaimed: false, bot: null, moodleName: null });
     return {};
   },
-  async bot({ token, ownerId }) {
-    const res = await saveBotSettings(token, ownerId);
+  async bot({ token }) {
+    const res = await saveBotSettings(token);
     // A new token means the deployed Worker has the old one: deploy and connect again.
     saveState({ bot: res.bot ?? null, workerUrl: null, telegramOk: false });
     return res;
@@ -62,8 +62,18 @@ const API = {
     const { workerUrl } = readState();
     if (!workerUrl) throw new StepError("اول مرحله‌ی نصب ربات را انجام بده.");
     const res = await connectTelegram(workerUrl);
-    if (res.ok) saveState({ telegramOk: true, bot: res.bot });
+    if (res.ok) saveState({ telegramOk: true, bot: res.bot, ownerClaimed: await ownerClaimed() });
     return res;
+  },
+  async claimLink() {
+    const { bot } = readState();
+    if (!bot) throw new StepError("اول مرحله‌ی وصل کردن تلگرام باید تمام شود.");
+    return claimLink(bot);
+  },
+  async claimStatus() {
+    const claimed = await ownerClaimed();
+    if (claimed) saveState({ ownerClaimed: true });
+    return { claimed };
   },
   async login({ qr }) {
     const res = await loginWithQr(qr);

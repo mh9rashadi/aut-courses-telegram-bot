@@ -8,7 +8,8 @@ import * as asg from "./handlers/assignments";
 import * as courses from "./handlers/courses";
 import * as login from "./handlers/login";
 import * as menu from "./handlers/menu";
-import { RELOGIN_TEXT } from "./texts";
+import { claimOwner, ownerId } from "./owner";
+import { NOT_CLAIMED_TEXT, RELOGIN_TEXT } from "./texts";
 
 type ButtonHandler = (ctx: Ctx, args: string[]) => Promise<void>;
 
@@ -45,8 +46,20 @@ export async function handleUpdate(update: Update, env: Env): Promise<void> {
   if (!from || !chatId) return;
 
   const ctx = new Ctx(env, chatId, callback?.message?.message_id ?? null, callback?.id ?? null);
-  if (String(from.id) !== env.OWNER_ID) {
-    if (message) await ctx.send(`این ربات شخصی است.\nآیدی عددی شما: <code>${from.id}</code>`);
+  let owner = await ownerId(env, ctx.store);
+  if (owner === null) {
+    const code = /^\/start\s+([\w-]+)/.exec(message?.text ?? "")?.[1];
+    if (code && (await claimOwner(ctx.store, code, from.id))) {
+      owner = from.id;
+      await ctx.send("✅ ربات به اسم تو ثبت شد. از این به بعد فقط به تو جواب می‌دهد.");
+    } else {
+      if (message) await ctx.send(NOT_CLAIMED_TEXT);
+      else await ctx.answer("ربات هنوز راه‌اندازی نشده", true);
+      return;
+    }
+  }
+  if (from.id !== owner) {
+    if (message) await ctx.send("این ربات شخصی است.");
     else await ctx.answer("دسترسی ندارید", true);
     return;
   }

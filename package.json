@@ -15,7 +15,8 @@
     "setup": "node tools/setup.mjs",
     "webhook": "node tools/set-webhook.mjs",
     "qr-token": "node tools/qr-token.mjs",
-    "installer": "node tools/installer/server.mjs"
+    "installer": "node tools/installer/server.mjs",
+    "uninstall": "node tools/uninstall.mjs"
   },
   "devDependencies": {
     "@grammyjs/types": "^5.0.0",

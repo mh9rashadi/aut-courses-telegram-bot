@@ -104,7 +104,7 @@ const STEPS = [
     render(body) {
       body.innerHTML = `
         ${S.tokenRefused ? `<div class="msg err">تلگرام توکن قبلی را قبول نکرد. توکن درست را دوباره وارد کن.</div>` : ""}
-        <p><b>الف) یک ربات تلگرام بساز:</b></p>
+        <p>یک ربات تلگرام بساز:</p>
         <ol>
           <li>در تلگرام به <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a> پیام بده و <code>/newbot</code> را بفرست.</li>
           <li>یک اسم برای ربات بفرست (هر چیزی، مثلاً «کورسز من»).</li>
@@ -114,19 +114,13 @@ const STEPS = [
         <label for="token">توکن ربات</label>
         <input type="password" id="token" autocomplete="off" spellcheck="false" placeholder="123456789:AA…">
         <label class="hint"><input type="checkbox" id="show"> نمایش توکن</label>
-        <p><b>ب) آیدی عددی تلگرامت:</b> به <a href="https://t.me/userinfobot" target="_blank" rel="noopener">@userinfobot</a>
-          پیام بده؛ عددی که جلوی <code>Id</code> می‌نویسد را این‌جا بگذار. ربات فقط به همین آیدی جواب می‌دهد.</p>
-        <label for="owner">آیدی عددی تلگرام</label>
-        <input type="text" id="owner" inputmode="numeric" autocomplete="off" placeholder="123456789">
         <button id="bot-save">ذخیره و ادامه</button>`;
       $("#show", body).onchange = (e) => ($("#token", body).type = e.target.checked ? "text" : "password");
       $("#bot-save", body).onclick = (e) => busy(e.currentTarget, "بررسی توکن…", async () => {
-        const res = await api("bot", { token: $("#token", body).value, ownerId: $("#owner", body).value });
+        const res = await api("bot", { token: $("#token", body).value });
         S.tokenRefused = false;
         opened = null;
-        if (res.unverified) {
-          sessionStorage.setItem("unverified", "1");
-        }
+        if (res.unverified) sessionStorage.setItem("unverified", "1");
         await refresh();
       });
     },
@@ -153,13 +147,17 @@ const STEPS = [
   },
   {
     id: "s4",
-    done: () => Boolean(S.telegramOk),
-    summary: () => (S.telegramOk ? "وصل شد" : ""),
+    done: () => Boolean(S.telegramOk && S.ownerClaimed),
+    summary: () => (S.telegramOk && S.ownerClaimed ? "وصل شد" : ""),
     render(body) {
-      body.innerHTML = `
-        <p>حالا به تلگرام می‌گوییم پیام‌های رباتت را به Cloudflare بفرستد. لازم نیست کاری بکنی.</p>
-        <div class="msg info" id="tg-status"><span class="spinner"></span>در حال وصل کردن…</div>`;
-      startTelegram();
+      if (!S.telegramOk) {
+        body.innerHTML = `
+          <p>حالا به تلگرام می‌گوییم پیام‌های رباتت را به Cloudflare بفرستد. لازم نیست کاری بکنی.</p>
+          <div class="msg info" id="tg-status"><span class="spinner"></span>در حال وصل کردن…</div>`;
+        startTelegram();
+      } else {
+        renderClaim(body);
+      }
     },
   },
   {
@@ -198,8 +196,7 @@ const STEPS = [
           <li>داخل هر درس دکمه‌ی <b>🔔 روشن کردن اعلان</b> را بزن تا محتوای جدیدش را خبر بدهد.</li>
           <li>هر چند ماه یک بار اتصال به کورسز منقضی می‌شود؛ ربات خودش خبر می‌دهد. آن موقع دوباره <b>install.cmd</b> را باز کن و فقط مرحله‌ی «ورود به کورسز» را انجام بده.</li>
         </ol>
-        <p class="hint">اگر ربات به <code>/start</code> جواب داد «این ربات شخصی است»، آیدی عددی‌ات را اشتباه وارد کرده‌ای:
-          مرحله‌ی ۲ را باز کن و درستش کن.</p>
+        <p class="hint">ربات فقط به همان حساب تلگرامی جواب می‌دهد که در مرحله‌ی ۴ Start را زد.</p>
         <button class="secondary" id="quit">بستن نصب‌کننده</button>`;
       $("#quit", body).onclick = async () => {
         await api("quit").catch(() => {});
@@ -282,6 +279,52 @@ function startTelegram() {
     telegramTimer = setTimeout(tick, 20_000);
   };
   telegramTimer = setTimeout(tick, 0);
+}
+
+// --- step 4b: the owner opens the bot through a one-time link, so the bot knows whom to serve ---------------------
+
+let claim = null; // { app, web, command }, made once per page
+let claimTimer = null;
+
+async function renderClaim(body) {
+  body.innerHTML = `<div class="msg info"><span class="spinner"></span>آماده کردن لینک…</div>`;
+  try {
+    claim ??= await api("claimLink");
+  } catch (err) {
+    body.innerHTML = `<div class="msg err">${esc(err.message)}</div>`;
+    return;
+  }
+  body.innerHTML = `
+    <div class="msg ok">ربات به تلگرام وصل شد ✓</div>
+    <p>یک قدم کوچک مانده: ربات باید بداند صاحبش تویی تا فقط به تو جواب بدهد.</p>
+    <ol>
+      <li>دکمه‌ی زیر را بزن تا رباتت در برنامه‌ی تلگرام باز شود.</li>
+      <li>در تلگرام دکمه‌ی <b>Start</b> (یا «شروع») را بزن.</li>
+    </ol>
+    <a class="btn" href="${esc(claim.app)}">باز کردن ربات در تلگرام</a>
+    <p class="hint">اگر تلگرام باز نشد: <a href="${esc(claim.web)}" target="_blank" rel="noopener">این لینک</a> را امتحان کن،
+      یا رباتت (<span class="ltr">@${esc(S.bot)}</span>) را در تلگرام پیدا کن و این خط را برایش بفرست:</p>
+    <p><code id="claim-cmd">${esc(claim.command)}</code> <button class="secondary" id="copy">کپی</button></p>
+    <div class="msg info"><span class="spinner"></span>منتظرم در تلگرام Start را بزنی…</div>`;
+  $("#copy", body).onclick = async (e) => {
+    await navigator.clipboard.writeText(claim.command).catch(() => {});
+    e.currentTarget.textContent = "کپی شد ✓";
+  };
+  clearTimeout(claimTimer);
+  const poll = async () => {
+    try {
+      if ((await api("claimStatus")).claimed) {
+        S.ownerClaimed = true;
+        opened = null;
+        await refresh();
+        return;
+      }
+    } catch {
+      // keep waiting; a network hiccup here is harmless
+    }
+    if ($("#claim-cmd")) claimTimer = setTimeout(poll, 5000);
+  };
+  claimTimer = setTimeout(poll, 5000);
 }
 
 // --- step 5: read the QR from a pasted/dropped image (or pasted text) ------------------------------------------

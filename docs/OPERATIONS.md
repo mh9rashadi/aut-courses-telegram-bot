@@ -13,7 +13,7 @@ What a deployment consists of (all in your own Cloudflare account):
 | `BOT_TOKEN` | Telegram bot token (@BotFather) | Cloudflare secret |
 | `WEBHOOK_SECRET` | random string; Telegram sends it in a header on every update | Cloudflare secret + Telegram webhook config |
 | `TOKEN_KEY` | base64 of 32 random bytes; encrypts the Moodle token in D1 | Cloudflare secret |
-| `OWNER_ID` | your numeric Telegram id; only this user can use the bot | Cloudflare secret |
+| `OWNER_ID` | optional, older installs: your numeric Telegram id. New installs store the owner in D1 `kv.owner_id` when you open the installer's link | Cloudflare secret |
 | Moodle token | set through the bot (QR text or `/settoken`) | D1 `kv.moodle_token`, encrypted |
 
 `.dev.vars` (git-ignored) is the local copy of the Cloudflare secrets, written by `npm run setup` and used by the
@@ -46,7 +46,7 @@ Leaked = posted in an issue, chat, screenshot or log, or `.dev.vars` copied some
 | Bot token (BotFather) | Anyone can act as your bot, read updates, change its webhook | "Rotate the bot token" above. The old token stops working at once. |
 | QR text (`qrlogin=…`) | Logging in as you until it expires (10 min, one use) | Usually nothing to do if > 10 min passed. If it may have been used, treat it like a leaked Moodle token. |
 | `/settoken …` line (Moodle token) | Full access to your courses account until the token expires or is revoked | `/logout` only removes it from the bot, **not** from Moodle. Students can't list or revoke their tokens on this site (`/user/managetoken.php` is hidden), so ask the site support/admin to revoke your mobile-app tokens, then log in again. Changing the account password may not revoke it. |
-| `WEBHOOK_SECRET` | Sending fake updates to the Worker (still only acted on for `OWNER_ID`) | "Rotate `WEBHOOK_SECRET`" above. |
+| `WEBHOOK_SECRET` | Sending fake updates to the Worker (still only acted on for the owner) | "Rotate `WEBHOOK_SECRET`" above. |
 | `TOKEN_KEY` | Decrypting the Moodle token, but only together with a D1 export | "Rotate `TOKEN_KEY`" above, then log in again. |
 
 When asking for help, share error codes (`ipmismatch`, `expiredkey`, `wrangler deploy failed` + the message) and
@@ -93,13 +93,23 @@ npx wrangler d1 execute aut-courses-bot --remote --command "SELECT course_id, ch
 
 1. Cloudflare account (free) → `npx wrangler login`.
 2. `npx wrangler d1 create aut-courses-bot --no-update-config` → `npm run db:migrate`.
-3. Create `.dev.vars` with `BOT_TOKEN`, `OWNER_ID`, `WEBHOOK_SECRET`, `TOKEN_KEY` (generate as above).
+3. Create `.dev.vars` with `BOT_TOKEN`, `WEBHOOK_SECRET`, `TOKEN_KEY` (generate as above), and `OWNER_ID` (your
+   numeric Telegram id) since there is no installer link to claim the bot.
 4. First deploy (secrets must exist before the Worker does): `npx wrangler deploy --secrets-file .dev.vars`.
 5. `npm run webhook -- https://aut-courses-bot.<your-subdomain>.workers.dev`.
 6. Send `/start` to the bot, log in with `npm run installer` (step 5) or `npm run qr-token` + `/settoken`.
    Subscribe to courses with the 🔔 button.
 
 Before step 4 the account needs a workers.dev subdomain (once per account; dashboard → Workers & Pages).
+
+## Removing the bot
+
+`uninstall.cmd` / `npm run uninstall` (asks for `yes`; `--yes` skips, `--logout` also logs wrangler out): deletes the
+Telegram webhook, the Worker, the D1 database (with the stored login) and the local `.dev.vars` and
+`.installer-state.json`. Parts that are already gone are skipped, so it is safe to repeat.
+
+**Changing the owner** (new installs): `npx wrangler d1 execute aut-courses-bot --remote --command "DELETE FROM kv WHERE key='owner_id'"`,
+delete the local `.installer-state.json`, then open the installer again: step 4 shows a new link.
 
 ## Moving away from Cloudflare
 

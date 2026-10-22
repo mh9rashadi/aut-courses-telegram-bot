@@ -10,9 +10,10 @@
   //   BOT_TOKEN       Telegram bot token from @BotFather
   //   WEBHOOK_SECRET  random string Telegram echoes in X-Telegram-Bot-Api-Secret-Token
   //   TOKEN_KEY       base64 32-byte AES key that encrypts the Moodle token stored in D1
-  //   OWNER_ID        your numeric Telegram user id; nobody else can use the bot
-  // `npm run setup` creates all of them.
-  "secrets": { "required": ["BOT_TOKEN", "WEBHOOK_SECRET", "TOKEN_KEY", "OWNER_ID"] },
+  //   OWNER_ID        optional: your numeric Telegram user id. Without it, the installer's link makes you the
+  //                   owner (src/bot/owner.ts). Older installs have it.
+  // The installer (install.cmd) / `npm run setup` creates the required ones.
+  "secrets": { "required": ["BOT_TOKEN", "WEBHOOK_SECRET", "TOKEN_KEY"] },
 
   "vars": {
     "MOODLE_URL": "https://courses.aut.ac.ir"

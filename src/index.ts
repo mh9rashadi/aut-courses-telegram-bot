@@ -4,17 +4,10 @@
 
 import type { Update } from "@grammyjs/types";
 import { handleUpdate } from "./bot/router";
+import { safeEqual } from "./crypto";
 import { runPoller } from "./poller";
 import { SETUP_PATH, WEBHOOK_PATH, ensureWebhook } from "./setup";
 import { Store } from "./store";
-
-/** Constant-time string comparison, so the secret can't be guessed from response timing. */
-function safeEqual(a: string, b: string): boolean {
-  const x = new TextEncoder().encode(a);
-  const y = new TextEncoder().encode(b);
-  if (x.length !== y.length) return false;
-  return crypto.subtle.timingSafeEqual(x, y);
-}
 
 export default {
   async fetch(request, env): Promise<Response> {

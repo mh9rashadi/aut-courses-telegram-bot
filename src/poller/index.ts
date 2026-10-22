@@ -12,6 +12,7 @@ import { btn, esc, fmtLeft, fmtTime, kb, stripHtml, urlBtn } from "../telegram/f
 import { Moodle, TokenInvalid } from "../moodle/client";
 import { Store } from "../store";
 import { Telegram } from "../telegram/api";
+import { ownerId } from "../bot/owner";
 import { RELOGIN_TEXT, modIcon } from "../bot/texts";
 import { cmidFromUrl } from "../bot/handlers/menu";
 import { diffSnapshots, takeSnapshot, type Change } from "./snapshot";
@@ -33,9 +34,9 @@ interface Run {
 export async function runPoller(env: Env): Promise<void> {
   const store = new Store(env.DB, env.TOKEN_KEY);
   const tg = new Telegram(env.BOT_TOKEN);
-  const owner = Number(env.OWNER_ID);
+  const owner = await ownerId(env, store);
   const token = await store.getToken();
-  if (!token) return; // not logged in yet; nothing to check
+  if (!token || owner === null) return; // not set up yet; nothing to check
 
   const run: Run = { env, store, tg, moodle: new Moodle(env.MOODLE_URL, token), owner,
     now: Math.floor(Date.now() / 1000) };

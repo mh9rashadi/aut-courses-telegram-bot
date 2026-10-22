@@ -10,7 +10,9 @@ Cron */5 min ─────────────────────▶ 
                                          all ──▶ D1 (state)
 ```
 
-One Worker, one D1 database, no other services. Single user (`OWNER_ID`).
+One Worker, one D1 database, no other services. Single user: the owner (`bot/owner.ts`) is the `OWNER_ID` secret on
+older installs, otherwise whoever sends the installer's one-time `/start <code>` first (only its SHA-256 is stored in
+`kv.claim_code`); until then the bot answers nobody.
 
 ## Why these choices
 

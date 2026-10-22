@@ -1,6 +1,20 @@
-// AES-GCM encryption for the Moodle token at rest in D1.
-// The key (TOKEN_KEY secret, base64 of 32 random bytes) lives only in Cloudflare secrets, so a leaked
-// database export alone does not reveal the token. Stored format: "v1.<base64 iv>.<base64 ciphertext>".
+// Small crypto helpers.
+// AES-GCM encryption for the Moodle token at rest in D1. The key (TOKEN_KEY secret, base64 of 32 random bytes)
+// lives only in Cloudflare secrets, so a leaked database export alone does not reveal the token.
+// Stored format: "v1.<base64 iv>.<base64 ciphertext>".
+
+/** Constant-time string comparison, so a secret can't be guessed from response timing. */
+export function safeEqual(a: string, b: string): boolean {
+  const x = new TextEncoder().encode(a);
+  const y = new TextEncoder().encode(b);
+  if (x.length !== y.length) return false;
+  return crypto.subtle.timingSafeEqual(x, y);
+}
+
+export async function sha256Hex(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 
 const b64 = (bytes: Uint8Array): string => btoa(String.fromCharCode(...bytes));
 const unb64 = (text: string): Uint8Array => Uint8Array.from(atob(text), (c) => c.charCodeAt(0));

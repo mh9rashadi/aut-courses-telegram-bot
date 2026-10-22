@@ -5,8 +5,8 @@
 
 import { createInterface } from "node:readline/promises";
 import { readDevVars } from "./lib.mjs";
-import { StepError, WORKER_NAME, cloudflareLogin, cloudflareStatus, connectTelegram, deployWorker, loginWithQr,
-  saveBotSettings, setupDatabase } from "./steps.mjs";
+import { StepError, WORKER_NAME, claimLink, cloudflareLogin, cloudflareStatus, connectTelegram, deployWorker,
+  loginWithQr, ownerClaimed, saveBotSettings, setupDatabase } from "./steps.mjs";
 
 const rl = createInterface({ input: process.stdin, output: process.stdout });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -33,15 +33,13 @@ try {
   console.log(`وارد شدی: ${cf.email}`);
 
   step(2, "ربات تلگرام");
-  const { BOT_TOKEN, OWNER_ID } = readDevVars();
-  if (BOT_TOKEN && OWNER_ID) {
-    console.log("توکن ربات و آیدی از قبل در .dev.vars ذخیره شده‌اند.");
+  if (readDevVars().BOT_TOKEN) {
+    console.log("توکن ربات از قبل در .dev.vars ذخیره شده.");
   } else {
     while (true) {
       const token = await rl.question("توکن ربات از @BotFather: ");
-      const owner = await rl.question("آیدی عددی تلگرامت (از @userinfobot): ");
       try {
-        const res = await saveBotSettings(token, owner);
+        const res = await saveBotSettings(token);
         console.log(res.bot ? `ربات پیدا شد: @${res.bot}` :
           "تلگرام از این کامپیوتر در دسترس نیست؛ توکن بعد از نصب از سمت Cloudflare بررسی می‌شود.");
         break;
@@ -58,10 +56,12 @@ try {
   log(`آدرس: ${url}`);
 
   step(4, "وصل کردن تلگرام");
+  let bot;
   for (let attempt = 0; ; attempt++) {
     const res = await connectTelegram(url);
     if (res.ok) {
-      console.log(`وصل شد: @${res.bot}`);
+      bot = res.bot;
+      console.log(`وصل شد: @${bot}`);
       break;
     }
     if (res.tokenRefused) {
@@ -73,6 +73,14 @@ try {
     }
     process.stdout.write(".");
     await sleep(20_000);
+  }
+  if (!(await ownerClaimed())) {
+    const link = await claimLink(bot);
+    console.log("حالا ربات باید بداند صاحبش تویی. این لینک را باز کن و در تلگرام Start را بزن:\n" +
+      `   ${link.web}\n` +
+      `اگر باز نشد، رباتت (@${bot}) را در تلگرام پیدا کن و این را برایش بفرست:  ${link.command}`);
+    while (!(await ownerClaimed())) await sleep(5000);
+    console.log("ربات به اسم تو ثبت شد ✓");
   }
 
   step(5, "ورود به کورسز");
