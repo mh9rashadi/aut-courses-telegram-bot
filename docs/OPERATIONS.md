@@ -1,7 +1,8 @@
 # Operations runbook
 
 What a deployment consists of (all in your own Cloudflare account):
-- Worker `aut-courses-bot` → `https://aut-courses-bot.<your-subdomain>.workers.dev` (only `POST /telegram` is served)
+- Worker `aut-courses-bot` → `https://aut-courses-bot.<your-subdomain>.workers.dev` (only `POST /telegram` is served).
+  The name comes from `wrangler.jsonc`; any other Worker in the dashboard (e.g. one made by hand) is not this bot.
 - D1 database `aut-courses-bot` (found by name; no id in the repo)
 - Your Telegram bot, pointed at the Worker by `npm run setup` / `npm run webhook`
 
@@ -29,11 +30,28 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"     
 
 **Deploy a change:** `npm run check && npm run deploy`.
 
-**Moodle token expired** (bot says so / menu shows the re-login text): send the profile QR text to the bot (README).
+**Moodle token expired** (bot says so / menu shows the re-login text): new profile QR → `npm run qr-token` on the
+computer that shows the QR → send the printed `/settoken …` line to the bot (README, step 4).
 Token lifetime is set by the site (Moodle default ~12 weeks); expect to do this a few times a year.
 
-**Rotate the bot token** (e.g. leaked): @BotFather → /revoke → put the new token in `.dev.vars` →
+**Rotate the bot token:** @BotFather → /revoke → put the new token in `.dev.vars` →
 `npx wrangler secret put BOT_TOKEN` → `npm run webhook -- <worker-url>`.
+
+## If a secret leaked
+
+Leaked = posted in an issue, chat, screenshot or log, or `.dev.vars` copied somewhere. Act on each value that leaked:
+
+| Leaked | What it allows | Do |
+|---|---|---|
+| Bot token (BotFather) | Anyone can act as your bot, read updates, change its webhook | "Rotate the bot token" above. The old token stops working at once. |
+| QR text (`qrlogin=…`) | Logging in as you until it expires (10 min, one use) | Usually nothing to do if > 10 min passed. If it may have been used, treat it like a leaked Moodle token. |
+| `/settoken …` line (Moodle token) | Full access to your courses account until the token expires or is revoked | `/logout` only removes it from the bot, **not** from Moodle. Students can't list or revoke their tokens on this site (`/user/managetoken.php` is hidden), so ask the site support/admin to revoke your mobile-app tokens, then log in again. Changing the account password may not revoke it. |
+| `WEBHOOK_SECRET` | Sending fake updates to the Worker (still only acted on for `OWNER_ID`) | "Rotate `WEBHOOK_SECRET`" above. |
+| `TOKEN_KEY` | Decrypting the Moodle token, but only together with a D1 export | "Rotate `TOKEN_KEY`" above, then log in again. |
+
+When asking for help, share error codes (`ipmismatch`, `expiredkey`, `wrangler deploy failed` + the message) and
+replace ids/URLs with placeholders. None of the tools print secrets except `qr-token`'s final `/settoken` line,
+which is meant only for your own bot.
 
 **Rotate `WEBHOOK_SECRET`:** new value in `.dev.vars` → `npx wrangler secret put WEBHOOK_SECRET` → `npm run webhook -- <url>`.
 
@@ -50,6 +68,10 @@ log in again through the bot.
 
 | Symptom | Check |
 |---|---|
+| `setup`: "no workers.dev subdomain" / wrangler "register a workers.dev subdomain" | New Cloudflare account. Dashboard → Workers & Pages → pick a subdomain → wait a minute → `npm run setup` again (saved secrets and the database are reused). |
+| Login: `ipmismatch` | The site accepts a QR only from the IP that displayed it; the Worker's IP differs. New QR → `npm run qr-token` on the same computer and network as the browser. Don't resend the same QR, and don't try to spoof IPs or headers. |
+| Login: `expiredkey` / `invalidkey` | QR older than 10 min or already used. Show a new QR and redeem it right away. |
+| Bot says it couldn't delete a secret message | Delete the message yourself in Telegram (bot messages/permissions). |
 | Bot doesn't answer | `npm run webhook -- --info` → `last_error_message`, `pending_update_count`, url ends with `/telegram`. Dashboard → Workers → aut-courses-bot → Observability for errors. |
 | 403 in webhook info | `WEBHOOK_SECRET` in Cloudflare differs from the one given to setWebhook → re-run `npm run webhook -- <url>`. |
 | "بررسی خودکار … اجرا نشده" in menu | Cron not running: dashboard → Worker → Settings → Triggers; Observability for `scheduled` errors. Cloudflare status page. |
@@ -72,7 +94,9 @@ npx wrangler d1 execute aut-courses-bot --remote --command "SELECT course_id, ch
 3. Create `.dev.vars` with `BOT_TOKEN`, `OWNER_ID`, `WEBHOOK_SECRET`, `TOKEN_KEY` (generate as above).
 4. First deploy (secrets must exist before the Worker does): `npx wrangler deploy --secrets-file .dev.vars`.
 5. `npm run webhook -- https://aut-courses-bot.<your-subdomain>.workers.dev`.
-6. Send `/start` to the bot, then the QR text to log in. Subscribe to courses with the 🔔 button.
+6. Send `/start` to the bot, log in with `npm run qr-token` + `/settoken`. Subscribe to courses with the 🔔 button.
+
+Before step 4 the account needs a workers.dev subdomain (once per account; dashboard → Workers & Pages).
 
 ## Moving away from Cloudflare
 

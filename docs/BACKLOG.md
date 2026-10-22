@@ -5,9 +5,10 @@ Known gaps and ideas, roughly by value. Contributions welcome. Pick one, read AR
 ## Verify on first real use
 - [ ] **Assignment submission** (📤 upload → ✅ ثبت → ارسال نهایی) was not tested end-to-end on v2, to avoid changing
       real submissions. Logic matches v1. Watch the first real submission; check Observability if it fails.
-- [ ] **QR login from Cloudflare's IP** is untested (the site might bind the QR to the IP that displayed it).
-      Fallback already exists: `npm run qr-token`. If it fails from the Worker, update RELOGIN_TEXT to lead with the
-      fallback.
+- [x] **QR login from Cloudflare's IP**: a real install (2026-10-22) got `ipmismatch` (site has the QR same-IP check
+      on). `npm run qr-token` is now the main documented path; the bot explains `ipmismatch`/`expiredkey`.
+- [ ] **Fresh Cloudflare account without workers.dev subdomain**: `setup` now checks it before creating anything
+      (API `accounts/:id/workers/subdomain`), but this path was only tested by unit test, not on a brand-new account.
 
 ## Improvements
 - [ ] Stream assignment uploads too (Telegram → Moodle `upload.php`), like `sendDocumentStream`; today files are

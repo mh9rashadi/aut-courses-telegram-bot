@@ -4,6 +4,22 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
 export const DEV_VARS = ".dev.vars";
 
+/** An actionable explanation for known wrangler failures (from its output), or null if unknown. */
+export function deployErrorHelp(output) {
+  if (/register a workers\.dev subdomain/i.test(output)) {
+    return "Your Cloudflare account has no workers.dev subdomain yet (needed once per account).\n" +
+      "   Open https://dash.cloudflare.com/?to=/:account/workers-and-pages , pick a subdomain when asked\n" +
+      "   (or Workers & Pages → Settings → Subdomain), wait a minute, then run `npm run setup` again.";
+  }
+  if (/not authenticated|authentication error|\[code: 10000\]|invalid access token/i.test(output)) {
+    return "Cloudflare login is missing or expired. Run `npx wrangler login`, then `npm run setup` again.";
+  }
+  if (/more than one account|multiple accounts/i.test(output)) {
+    return "You have several Cloudflare accounts. Set CLOUDFLARE_ACCOUNT_ID to the one to use, then run setup again.";
+  }
+  return null;
+}
+
 /** Read KEY=value lines from .dev.vars (git-ignored local copy of the Worker secrets). */
 export function readDevVars() {
   if (!existsSync(DEV_VARS)) return {};

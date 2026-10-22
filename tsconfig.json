@@ -10,7 +10,8 @@
     "noImplicitOverride": true,
     "isolatedModules": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "allowJs": true
   },
   "include": ["src", "test", "worker-configuration.d.ts"]
 }
