@@ -9,6 +9,8 @@ import type {
 // The site treats requests with the Moodle app user agent like the app (needed for QR login).
 const APP_UA = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) MoodleMobile 4.5.0";
 const TIMEOUT_MS = 25_000;
+const READ_RETRIES = 2;
+const RETRY_DELAY_MS = 1_500;
 
 export class MoodleError extends Error {
   constructor(readonly code: string, message = "") {
@@ -45,27 +47,35 @@ export class Moodle {
     return this.token ?? raise("invalidtoken", "no token configured");
   }
 
-  private async request(url: string, init: RequestInit = {}): Promise<Response> {
+  /**
+   * fetch with timeout. Network errors and 5xx are retried `retries` times: the site often has short hiccups.
+   * Only pass retries > 0 for requests that are safe to repeat (reads), never for submissions.
+   */
+  private async request(url: string, init: RequestInit = {}, retries = 0): Promise<Response> {
     const headers = new Headers(init.headers);
     headers.set("User-Agent", APP_UA);
-    try {
-      const resp = await fetch(url, { ...init, headers, signal: AbortSignal.timeout(TIMEOUT_MS) });
-      if (!resp.ok) raise("http", `HTTP ${resp.status}`);
-      return resp;
-    } catch (err) {
-      if (err instanceof MoodleError) throw err;
-      throw new MoodleError("network", String(err));
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const resp = await fetch(url, { ...init, headers, signal: AbortSignal.timeout(TIMEOUT_MS) });
+        if (resp.ok) return resp;
+        if (resp.status < 500 || attempt >= retries) raise("http", `HTTP ${resp.status}`);
+      } catch (err) {
+        if (err instanceof MoodleError) throw err;
+        if (attempt >= retries) throw new MoodleError("network", String(err));
+      }
+      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS * (attempt + 1)));
     }
   }
 
-  async call<T>(fn: string, params: Params = {}): Promise<T> {
+  /** Call a web-service function. Reads are retried on network errors; writes pass `{ retries: 0 }`. */
+  async call<T>(fn: string, params: Params = {}, { retries = READ_RETRIES } = {}): Promise<T> {
     const body = new URLSearchParams([
       ["wstoken", this.requireToken()],
       ["wsfunction", fn],
       ["moodlewsrestformat", "json"],
       ...flatten(params),
     ]);
-    const resp = await this.request(`${this.base}/webservice/rest/server.php`, { method: "POST", body });
+    const resp = await this.request(`${this.base}/webservice/rest/server.php`, { method: "POST", body }, retries);
     const data = (await resp.json()) as T & { exception?: string; errorcode?: string; message?: string };
     if (data && typeof data === "object" && "exception" in data) raise(data.errorcode ?? "unknown", data.message);
     return data;
@@ -120,7 +130,7 @@ export class Moodle {
     const url = new URL(fileurl.includes("/webservice/pluginfile.php")
       ? fileurl : fileurl.replace("/pluginfile.php", "/webservice/pluginfile.php"));
     url.searchParams.set("token", this.requireToken());
-    const resp = await this.request(url.toString());
+    const resp = await this.request(url.toString(), {}, READ_RETRIES);
     // Errors come back as JSON with HTTP 200.
     if (resp.headers.get("content-type")?.startsWith("application/json")) {
       const err = (await resp.json()) as { errorcode?: string; error?: string };
@@ -146,13 +156,13 @@ export class Moodle {
 
   async saveSubmission(assignmentid: number, draftItemId: number): Promise<void> {
     const warnings = await this.call<{ message: string }[]>(
-      "mod_assign_save_submission", { assignmentid, plugindata: { files_filemanager: draftItemId } });
+      "mod_assign_save_submission", { assignmentid, plugindata: { files_filemanager: draftItemId } }, { retries: 0 });
     if (warnings.length) raise("savesubmission", warnings.map((w) => w.message).join("; "));
   }
 
   async submitForGrading(assignmentid: number): Promise<void> {
     const warnings = await this.call<{ message: string }[]>(
-      "mod_assign_submit_for_grading", { assignmentid, acceptsubmissionstatement: 1 });
+      "mod_assign_submit_for_grading", { assignmentid, acceptsubmissionstatement: 1 }, { retries: 0 });
     if (warnings.length) raise("submitforgrading", warnings.map((w) => w.message).join("; "));
   }
 
