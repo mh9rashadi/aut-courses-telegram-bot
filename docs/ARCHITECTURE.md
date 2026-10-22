@@ -14,6 +14,37 @@ One Worker, one D1 database, no other services. Single user: the owner (`bot/own
 older installs, otherwise whoever sends the installer's one-time `/start <code>` first (only its SHA-256 is stored in
 `kv.claim_code`); until then the bot answers nobody.
 
+## Code layout
+
+```
+src/
+  index.ts              Worker entry: webhook (fetch), installer hook (POST /setup), cron (scheduled)
+  bot/router.ts         update dispatch, owner check, button table
+  bot/owner.ts          who owns the bot (OWNER_ID secret or claimed with the installer's link)
+  bot/handlers/*.ts     menu, login, courses, assignments
+  poller/               background checks + course snapshot diff
+  moodle/client.ts      Moodle web-service client
+  telegram/             Bot API client, Persian/Jalali formatting
+  setup.ts              Worker connects its own bot to Telegram (POST /setup, cron)
+  store.ts              D1 access (the only SQL in the Worker)
+  crypto.ts             AES-GCM for the stored Moodle token, hashing, constant-time compare
+migrations/             D1 schema (append-only)
+install.cmd             Windows: install packages, open the browser installer
+uninstall.cmd           Windows: remove the bot (tools/uninstall.mjs)
+tools/installer/        browser installer (npm run installer)
+tools/steps.mjs         install/uninstall steps shared by the installer and the terminal tools
+tools/                  terminal setup, uninstall, webhook, qr-token
+test/                   vitest unit tests
+```
+
+```bash
+npm run check       # type-check + unit tests (run before every deploy)
+npm run deploy      # deploy to your Cloudflare account
+npm run installer   # browser installer (what install.cmd starts)
+npm run setup       # the same steps in the terminal
+npm run logs        # live logs (or Cloudflare dashboard → Workers → Observability)
+```
+
 ## Why these choices
 
 | Decision | Reason |
